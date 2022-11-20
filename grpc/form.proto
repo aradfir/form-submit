@@ -1,0 +1,17 @@
+syntax="proto3";
+option go_package="grpc/form_data";
+package form_data;
+service FormSubmit{
+  rpc SubmitForm(FormData) returns(FormResult) {}
+}
+message FormData{
+  string first_name = 1;
+  string last_name = 2;
+  string email = 3;
+  uint32 age = 4;
+  float height = 5;
+}
+message FormResult{
+  bool success = 1;
+  string details = 2;
+}
