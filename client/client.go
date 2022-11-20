@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	pb "FormSubmit/grpc"
@@ -36,7 +36,7 @@ func fillForm() *pb.FormData {
 	fmt.Scanf("%f", &form.Height)
 	return &form
 }
-func main() {
+func RunClient() {
 
 	// Contact the server and print out its response.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)

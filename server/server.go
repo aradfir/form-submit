@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	pb "FormSubmit/grpc"
@@ -76,7 +76,7 @@ func (s *server) SubmitForm(ctx context.Context, in *pb.FormData) (*pb.FormResul
 			Details: "Hooray!"},
 		nil
 }
-func main() {
+func RunServer() {
 	lis, err := net.Listen("tcp", "localhost:"+strconv.Itoa(port))
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
