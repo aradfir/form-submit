@@ -76,8 +76,8 @@ func (s *server) SubmitForm(ctx context.Context, in *pb.FormData) (*pb.FormResul
 			Details: "Hooray!"},
 		nil
 }
-func RunServer() {
-	lis, err := net.Listen("tcp", "localhost:"+strconv.Itoa(port))
+func RunServer(address string, port uint) {
+	lis, err := net.Listen("tcp", "localhost:"+strconv.FormatUint(uint64(port), 10))
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
