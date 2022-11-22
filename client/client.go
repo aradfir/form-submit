@@ -36,17 +36,17 @@ func fillForm(args []string) *pb.FormData {
 	fmt.Sscanf(args[4], "%f", &form.Height)
 	return &form
 }
-func viperSetup() (*defaultConfig, error) {
-	var config *defaultConfig
+func viperSetup() (defaultConfig, error) {
+	var config defaultConfig
 	viper.SetConfigType("json")
 	viper.SetConfigFile("./defaults.json")
 	err := viper.ReadInConfig()
 	if err != nil {
-		return nil, err
+		return defaultConfig{}, err
 	}
-	err = viper.Unmarshal(config)
+	err = viper.Unmarshal(&config)
 	if err != nil {
-		return nil, err
+		return defaultConfig{}, err
 	}
 	return config, nil
 }
@@ -64,12 +64,10 @@ func getHostAndPort(flags *pflag.FlagSet, config *defaultConfig) (string, uint) 
 func RunClient(command *cobra.Command, args []string) {
 	config, err := viperSetup()
 	if err != nil {
-		log.Fatal("Error reading config (defaults.json)! aborting...")
+		log.Fatalf("Error reading config (defaults.json) Error :%v ! aborting...", err)
 		return
 	}
-
-	// Contact the server and print out its response.
-	host, port := getHostAndPort(command.Flags(), config)
+	host, port := getHostAndPort(command.Flags(), &config)
 	form := fillForm(args)
 	conn, c := initializeConnection(host, port)
 	defer conn.Close()

@@ -104,17 +104,17 @@ func loggerServerInterceptor(ctx context.Context,
 
 }
 
-func viperSetup() (*defaultConfig, error) {
-	var config *defaultConfig
+func viperSetup() (defaultConfig, error) {
+	var config defaultConfig
 	viper.SetConfigType("json")
 	viper.SetConfigFile("./defaults.json")
 	err := viper.ReadInConfig()
 	if err != nil {
-		return nil, err
+		return defaultConfig{}, err
 	}
-	err = viper.Unmarshal(config)
+	err = viper.Unmarshal(&config)
 	if err != nil {
-		return nil, err
+		return defaultConfig{}, err
 	}
 	return config, nil
 }
@@ -130,10 +130,10 @@ func getHostAndPort(host string, port uint, config *defaultConfig) (string, uint
 func RunServer(host string, port uint) {
 	config, err := viperSetup()
 	if err != nil {
-		log.Fatal("Error reading config (defaults.json)! aborting...")
+		log.Fatalf("Error reading config (defaults.json) Error :%v ! aborting...", err)
 		return
 	}
-	host, port = getHostAndPort(host, port, config)
+	host, port = getHostAndPort(host, port, &config)
 	lis, err := net.Listen("tcp", fmt.Sprintf("%v:%v", host, port))
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
