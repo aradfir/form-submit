@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"log"
 	"net"
@@ -12,10 +13,14 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"strconv"
 )
 
-var port = 8080
+type defaultConfig struct {
+	DefaultHost string
+	DefaultPort uint
+}
+
+var config defaultConfig
 
 type server struct {
 	pb.UnimplementedFormSubmitServer
@@ -77,7 +82,25 @@ func (s *server) SubmitForm(ctx context.Context, in *pb.FormData) (*pb.FormResul
 		nil
 }
 func RunServer(address string, port uint) {
-	lis, err := net.Listen("tcp", "localhost:"+strconv.FormatUint(uint64(port), 10))
+	viper.SetConfigType("json")
+	viper.SetConfigFile("./defaults.json")
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Println("Error reading default config! aborting...")
+		return
+	}
+	err = viper.Unmarshal(&config)
+	if err != nil {
+		fmt.Println("Error parsing default config! aborting...")
+		return
+	}
+	if port == 0 {
+		port = config.DefaultPort
+	}
+	if address == "" {
+		address = config.DefaultHost
+	}
+	lis, err := net.Listen("tcp", fmt.Sprintf("%v:%v", address, port))
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
