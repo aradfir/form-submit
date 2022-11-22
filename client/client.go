@@ -5,13 +5,21 @@ import (
 	"context"
 	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"time"
 )
 
-func initalizeConnection(host string, port uint) (*grpc.ClientConn, pb.FormSubmitClient) {
+type defaultConfig struct {
+	DefaultHost string
+	DefaultPort uint
+}
+
+var config defaultConfig
+
+func initializeConnection(host string, port uint) (*grpc.ClientConn, pb.FormSubmitClient) {
 
 	conn, err := grpc.Dial(fmt.Sprintf("%v:%v", host, port), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -36,12 +44,29 @@ func fillForm(args []string) *pb.FormData {
 }
 
 func RunClient(command *cobra.Command, args []string) {
-
+	viper.SetConfigType("json")
+	viper.SetConfigFile("./defaults.json")
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Println("Error reading default config! aborting...")
+		return
+	}
+	err = viper.Unmarshal(&config)
+	if err != nil {
+		fmt.Println("Error parsing default config! aborting...")
+		return
+	}
 	// Contact the server and print out its response.
 	host, _ := command.Flags().GetString("host")
+	if host == "" {
+		host = config.DefaultHost
+	}
 	port, _ := command.Flags().GetUint("port")
+	if port == 0 {
+		port = config.DefaultPort
+	}
 	form := fillForm(args)
-	conn, c := initalizeConnection(host, port)
+	conn, c := initializeConnection(host, port)
 	defer conn.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
