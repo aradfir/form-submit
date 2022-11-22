@@ -8,11 +8,13 @@ import (
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"log"
+	"math/rand"
 	"net"
 	"net/mail"
 	"os"
 	"reflect"
 	"runtime"
+	"time"
 )
 
 type defaultConfig struct {
@@ -81,6 +83,18 @@ func (s *server) SubmitForm(ctx context.Context, in *pb.FormData) (*pb.FormResul
 			Details: "Hooray!"},
 		nil
 }
+func loggerServerInterceptor(ctx context.Context,
+	req interface{},
+	info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler) (interface{}, error) {
+	requestId := rand.Uint64()
+	log.Printf("Request %v started \n", requestId)
+	start := time.Now()
+	h, err := handler(ctx, req)
+	log.Printf("Request %v finished - method:%s\tduration:%s\tError:%v\n", requestId, info.FullMethod, time.Since(start), err)
+	return h, err
+
+}
 func RunServer(address string, port uint) {
 	viper.SetConfigType("json")
 	viper.SetConfigFile("./defaults.json")
@@ -104,7 +118,7 @@ func RunServer(address string, port uint) {
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.UnaryInterceptor(loggerServerInterceptor))
 	pb.RegisterFormSubmitServer(s, &server{})
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
