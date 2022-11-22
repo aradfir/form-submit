@@ -39,7 +39,7 @@ func fillForm(args []string) *pb.FormData {
 func viperSetup() (defaultConfig, error) {
 	var config defaultConfig
 	viper.SetConfigType("json")
-	viper.SetConfigFile("./defaults.json")
+	viper.SetConfigFile("./configs/defaults.json")
 	err := viper.ReadInConfig()
 	if err != nil {
 		return defaultConfig{}, err
