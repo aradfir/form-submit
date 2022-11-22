@@ -42,18 +42,29 @@ func AgeValidator(in *pb.FormData) bool {
 func HeightValidator(in *pb.FormData) bool {
 	return in.GetHeight() > 0
 }
-func (s *server) SubmitForm(ctx context.Context, in *pb.FormData) (*pb.FormResult, error) {
-	var validators = [...]func(data *pb.FormData) bool{EmailValidator, AgeValidator, HeightValidator}
+func checkValidators(in *pb.FormData, validators []func(data *pb.FormData) bool) error {
 	for _, validator := range validators {
-		var correct bool = validator(in)
-		if !correct {
+		if !validator(in) {
 			failedValidator := GetFunctionName(validator)
 			errorText := fmt.Sprintf("validator %v failed", failedValidator)
-			return &pb.FormResult{
-				Success: false,
-				Details: errorText,
-			}, errors.New(errorText)
+			return errors.New(errorText)
 		}
+	}
+	return nil
+}
+func safeClose(f *os.File) {
+	err := f.Close()
+	if err != nil {
+		log.Fatalf("File close error:%v", err)
+	}
+}
+func (s *server) SubmitForm(ctx context.Context, in *pb.FormData) (*pb.FormResult, error) {
+	var validators = []func(data *pb.FormData) bool{EmailValidator, AgeValidator, HeightValidator}
+	if err := checkValidators(in, validators); err != nil {
+		return &pb.FormResult{
+			Success: false,
+			Details: err.Error(),
+		}, err
 	}
 
 	f, err := os.OpenFile("users.form", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -63,14 +74,10 @@ func (s *server) SubmitForm(ctx context.Context, in *pb.FormData) (*pb.FormResul
 			Details: "Failed to open database",
 		}, err
 	}
+	defer safeClose(f)
 
-	defer func() {
-		err := f.Close()
-		if err != nil {
-			log.Fatalf("File close error:%v", err)
-		}
-	}()
-	_, err = f.WriteString(fmt.Sprintf("%v ### %v ### %v ### %v ### %v\n", in.GetFirstName(), in.GetLastName(), in.GetEmail(), in.GetAge(), in.GetHeight()))
+	_, err = f.WriteString(fmt.Sprintf("%v ### %v ### %v ### %v ### %v\n",
+		in.GetFirstName(), in.GetLastName(), in.GetEmail(), in.GetAge(), in.GetHeight()))
 	if err != nil {
 		return &pb.FormResult{
 			Success: false,
@@ -87,6 +94,7 @@ func loggerServerInterceptor(ctx context.Context,
 	req interface{},
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler) (interface{}, error) {
+
 	requestId := rand.Uint64()
 	log.Printf("Request %v started \n", requestId)
 	start := time.Now()
@@ -95,26 +103,38 @@ func loggerServerInterceptor(ctx context.Context,
 	return h, err
 
 }
-func RunServer(address string, port uint) {
+
+func viperSetup() (*defaultConfig, error) {
+	var config *defaultConfig
 	viper.SetConfigType("json")
 	viper.SetConfigFile("./defaults.json")
 	err := viper.ReadInConfig()
 	if err != nil {
-		fmt.Println("Error reading default config! aborting...")
-		return
+		return nil, err
 	}
-	err = viper.Unmarshal(&config)
+	err = viper.Unmarshal(config)
 	if err != nil {
-		fmt.Println("Error parsing default config! aborting...")
-		return
+		return nil, err
+	}
+	return config, nil
+}
+func getHostAndPort(host string, port uint, config *defaultConfig) (string, uint) {
+	if host == "" {
+		host = config.DefaultHost
 	}
 	if port == 0 {
 		port = config.DefaultPort
 	}
-	if address == "" {
-		address = config.DefaultHost
+	return host, port
+}
+func RunServer(host string, port uint) {
+	config, err := viperSetup()
+	if err != nil {
+		log.Fatal("Error reading config (defaults.json)! aborting...")
+		return
 	}
-	lis, err := net.Listen("tcp", fmt.Sprintf("%v:%v", address, port))
+	host, port = getHostAndPort(host, port, config)
+	lis, err := net.Listen("tcp", fmt.Sprintf("%v:%v", host, port))
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
