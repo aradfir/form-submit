@@ -15,8 +15,11 @@ var rootCmd = &cobra.Command{
 
 	},
 }
+var commit string
+var buildTime string
 
 func main() {
+
 	clientCommand := &cobra.Command{
 		Use:   "client",
 		Short: "Runs the client",
@@ -38,11 +41,20 @@ func main() {
 			server.RunServer(address, port)
 		},
 	}
+	versionCommand := &cobra.Command{
+		Use:   "version",
+		Short: "Get the version of this program",
+		Long:  "Info about the program aka build sha and build time",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("Commit SHA:", commit)
+			fmt.Println("Build time:", buildTime)
+		},
+	}
 	serverCommand.Flags().StringVarP(&address, "host", "H", "", "Address to run server on - default value is from viper config")
 	serverCommand.Flags().UintVarP(&port, "port", "P", 0, "Port to run server on - default value is from viper config")
 	clientCommand.Flags().StringP("host", "H", "", "Host to send form to.")
 	clientCommand.Flags().UintP("port", "P", 0, "Port to send form to.")
-	rootCmd.AddCommand(clientCommand, serverCommand)
+	rootCmd.AddCommand(clientCommand, serverCommand, versionCommand)
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Whoops. There was an error while executing your CLI '%s'", err)
 		os.Exit(1)
