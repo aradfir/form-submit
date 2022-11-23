@@ -5,9 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
-	"log"
 	"math/rand"
 	"net"
 	"net/mail"
@@ -55,7 +55,7 @@ func checkValidators(in *pb.FormData, validators []func(data *pb.FormData) bool)
 func safeClose(f *os.File) {
 	err := f.Close()
 	if err != nil {
-		log.Fatalf("File close error:%v", err)
+		log.WithFields(log.Fields{"error": err}).Error("File close error")
 	}
 }
 func (s *server) SubmitForm(ctx context.Context, in *pb.FormData) (*pb.FormResult, error) {
@@ -69,6 +69,7 @@ func (s *server) SubmitForm(ctx context.Context, in *pb.FormData) (*pb.FormResul
 
 	f, err := os.OpenFile("users.form", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
+		log.WithFields(log.Fields{"error": err}).Error("DB file open failed")
 		return &pb.FormResult{
 			Success: false,
 			Details: "Failed to open database",
@@ -79,6 +80,7 @@ func (s *server) SubmitForm(ctx context.Context, in *pb.FormData) (*pb.FormResul
 	_, err = f.WriteString(fmt.Sprintf("%v ### %v ### %v ### %v ### %v\n",
 		in.GetFirstName(), in.GetLastName(), in.GetEmail(), in.GetAge(), in.GetHeight()))
 	if err != nil {
+		log.WithFields(log.Fields{"error": err}).Error("DB file write failed")
 		return &pb.FormResult{
 			Success: false,
 			Details: "Failed to write to server",
@@ -96,10 +98,15 @@ func loggerServerInterceptor(ctx context.Context,
 	handler grpc.UnaryHandler) (interface{}, error) {
 
 	requestId := rand.Uint64()
-	log.Printf("Request %v started \n", requestId)
+	log.WithFields(log.Fields{"request ID": requestId}).Info("Request  started \n", requestId)
 	start := time.Now()
 	h, err := handler(ctx, req)
-	log.Printf("Request %v finished - method:%s\tduration:%s\tError:%v\n", requestId, info.FullMethod, time.Since(start), err)
+	log.WithFields(log.Fields{
+		"request ID": requestId,
+		"method":     info.FullMethod,
+		"duration":   time.Since(start),
+		"error":      err,
+	}).Info("Request finished")
 	return h, err
 
 }
@@ -130,19 +137,22 @@ func getHostAndPort(host string, port uint, config *defaultConfig) (string, uint
 func RunServer(host string, port uint) {
 	config, err := viperSetup()
 	if err != nil {
-		log.Fatalf("Error reading config (defaults.json) Error :%v ! aborting...", err)
-		return
+		log.WithFields(log.Fields{"error": err}).Error("Error reading config")
 	}
 	host, port = getHostAndPort(host, port, &config)
 	lis, err := net.Listen("tcp", fmt.Sprintf("%v:%v", host, port))
 	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
+		log.WithFields(log.Fields{
+			"host":  host,
+			"port":  port,
+			"error": err,
+		}).Fatal("Failed to listen")
 	}
 	s := grpc.NewServer(grpc.UnaryInterceptor(loggerServerInterceptor))
 	pb.RegisterFormSubmitServer(s, &server{})
-	log.Printf("server listening at %v", lis.Addr())
+	log.WithFields(log.Fields{"address": lis.Addr()}).Print("server listening")
 	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		log.WithFields(log.Fields{"error": err}).Fatal("failed to serve")
 	}
 
 }

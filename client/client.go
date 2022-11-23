@@ -4,12 +4,12 @@ import (
 	pb "FormSubmit/grpc"
 	"context"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"log"
 	"time"
 )
 
@@ -22,7 +22,7 @@ func initializeConnection(host string, port uint) (*grpc.ClientConn, pb.FormSubm
 
 	conn, err := grpc.Dial(fmt.Sprintf("%v:%v", host, port), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
+		log.WithFields(log.Fields{"error": err}).Fatal("could not connect to server")
 	}
 
 	return conn, pb.NewFormSubmitClient(conn)
@@ -64,7 +64,7 @@ func getHostAndPort(flags *pflag.FlagSet, config *defaultConfig) (string, uint) 
 func RunClient(command *cobra.Command, args []string) {
 	config, err := viperSetup()
 	if err != nil {
-		log.Fatalf("Error reading config (defaults.json) Error :%v ! aborting...", err)
+		log.WithFields(log.Fields{"error": err}).Error("Error reading config")
 		return
 	}
 	host, port := getHostAndPort(command.Flags(), &config)
@@ -76,9 +76,9 @@ func RunClient(command *cobra.Command, args []string) {
 	defer cancel()
 	r, err := c.SubmitForm(ctx, form)
 	if err != nil {
-		log.Printf("could not submit form: %v\n", err)
+		fmt.Printf("could not submit form: %v\n", err)
 	} else {
-		log.Printf("Status:%v, details:%v\n", r.GetSuccess(), r.GetDetails())
+		fmt.Printf("Status:%v, details:%v\n", r.GetSuccess(), r.GetDetails())
 	}
 
 }
