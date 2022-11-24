@@ -5,11 +5,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"math/rand"
 	"net"
+	"net/http"
 	"net/mail"
 	"os"
 	"reflect"
@@ -22,7 +26,12 @@ type defaultConfig struct {
 	DefaultPort uint
 }
 
-var config defaultConfig
+var (
+	opsProcessed = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "myapp_processed_ops_total",
+		Help: "The total number of processed events",
+	})
+)
 
 type server struct {
 	pb.UnimplementedFormSubmitServer
@@ -101,6 +110,7 @@ func loggerServerInterceptor(ctx context.Context,
 	log.WithFields(log.Fields{"request ID": requestId}).Info("Request  started \n", requestId)
 	start := time.Now()
 	h, err := handler(ctx, req)
+	opsProcessed.Inc()
 	log.WithFields(log.Fields{
 		"request ID": requestId,
 		"method":     info.FullMethod,
@@ -134,11 +144,19 @@ func getHostAndPort(host string, port uint, config *defaultConfig) (string, uint
 	}
 	return host, port
 }
+func setupMetricServer() {
+	http.Handle("/metrics", promhttp.Handler())
+	err := http.ListenAndServe(":2112", nil)
+	if err != nil {
+		log.WithFields(log.Fields{"error": err}).Error("Error starting metrics server")
+	}
+}
 func RunServer(host string, port uint) {
 	config, err := viperSetup()
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Error("Error reading config")
 	}
+	go setupMetricServer()
 	host, port = getHostAndPort(host, port, &config)
 	lis, err := net.Listen("tcp", fmt.Sprintf("%v:%v", host, port))
 	if err != nil {
