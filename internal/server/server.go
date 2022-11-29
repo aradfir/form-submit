@@ -9,7 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"net"
-	"os"
 )
 
 type Validator func(data *form_data.FormData) bool
@@ -18,14 +17,7 @@ type server struct {
 	formSubmitValidators []Validator
 }
 
-func safeClose(f *os.File) {
-	err := f.Close()
-	if err != nil {
-		log.WithFields(log.Fields{"error": err}).Error("File close error")
-	}
-}
 func (s *server) SubmitForm(ctx context.Context, in *form_data.FormData) (*form_data.FormResult, error) {
-
 	if err := checkValidators(in, s.formSubmitValidators); err != nil {
 		return &form_data.FormResult{
 			Success: false,
@@ -33,24 +25,12 @@ func (s *server) SubmitForm(ctx context.Context, in *form_data.FormData) (*form_
 		}, err
 	}
 
-	f, err := os.OpenFile("users.form", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.WithFields(log.Fields{"error": err}).Error("DB file open failed")
+	if err := WriteToFile(in); err != nil {
 		return &form_data.FormResult{
-			Success: false,
-			Details: "Failed to open database",
-		}, err
-	}
-	defer safeClose(f)
-
-	_, err = f.WriteString(fmt.Sprintf("%v ### %v ### %v ### %v ### %v\n",
-		in.GetFirstName(), in.GetLastName(), in.GetEmail(), in.GetAge(), in.GetHeight()))
-	if err != nil {
-		log.WithFields(log.Fields{"error": err}).Error("DB file write failed")
-		return &form_data.FormResult{
-			Success: false,
-			Details: "Failed to write to server",
-		}, err
+				Success: false,
+				Details: "Error writing to database",
+			},
+			err
 	}
 
 	return &form_data.FormResult{
