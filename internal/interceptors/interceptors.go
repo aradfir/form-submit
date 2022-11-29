@@ -1,4 +1,4 @@
-package server
+package interceptors
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func loggerServerInterceptor(ctx context.Context,
+func ServerLogger(ctx context.Context,
 	req interface{},
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler) (interface{}, error) {
@@ -48,7 +48,7 @@ var (
 	})
 )
 
-func instrumentalizationInterceptor(ctx context.Context,
+func ServerInstrumentalization(ctx context.Context,
 	req interface{},
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler) (interface{}, error) {

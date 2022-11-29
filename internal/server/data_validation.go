@@ -1,7 +1,7 @@
 package server
 
 import (
-	pb "FormSubmit/grpc"
+	pb "FormSubmit/internal/grpc"
 	"errors"
 	"fmt"
 	"net/mail"
@@ -23,7 +23,7 @@ func AgeValidator(in *pb.FormData) bool {
 func HeightValidator(in *pb.FormData) bool {
 	return in.GetHeight() > 0
 }
-func checkValidators(in *pb.FormData, validators []func(data *pb.FormData) bool) error {
+func checkValidators(in *pb.FormData, validators []Validator) error {
 	for _, validator := range validators {
 		if !validator(in) {
 			failedValidator := GetFunctionName(validator)
