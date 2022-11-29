@@ -1,1 +1,1 @@
-go build -o ./../FormSubmit -ldflags "-X 'main.commit=$(git rev-parse --short HEAD)' -X 'main.buildTime=$(date)'" ./../form_submit.go
+go build -o ./../FormSubmit -ldflags "-X 'FormSubmit/cmd.commit=$(git rev-parse --short HEAD)' -X 'FormSubmit/cmd.buildTime=$(date)'" ./../form_submit.go
